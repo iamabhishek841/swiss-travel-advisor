@@ -1,132 +1,51 @@
 # Swiss Travel Advisor — Hybrid Retrieval + Local AI Mode
 
-Swiss Travel Advisor is an AI-powered travel assistant for discovering Swiss destinations, hotels, and activities using natural language queries.
+Swiss Travel Advisor is an AI-powered travel assistant for discovering Swiss destinations using natural language queries.
 
-This fork is based on the original Swiss Travel Advisor project by Alina Yurenko:
+This project is based on the original Swiss Travel Advisor repository by Alina Yurenko:
 `https://github.com/alina-yur/swiss-travel-advisor`
 
-The original project demonstrates a Micronaut + LangChain4j + Oracle AI Database + OpenAI + GraalVM Native Image based travel assistant.
-This fork keeps the original idea intact, but adds a retrieval-quality upgrade, local AI mode, in-memory vector search, reranking, and retrieval metrics.
+The original project demonstrates a Micronaut + LangChain4j travel assistant using OpenAI embeddings, Oracle AI Database vector search, and GraalVM Native Image.
+This fork extends that idea with hybrid retrieval reranking, a local Ollama-based AI mode, in-memory vector search, and retrieval timing metrics.
 
 ---
 
 ## What This Fork Adds
 
-This fork adds the following upgrades:
+This fork focuses on improving and experimenting with the retrieval pipeline.
 
-* Hybrid retrieval reranking for destination search.
+Main additions:
+
+* Hybrid retrieval reranking after vector search.
 * Local AI mode using Ollama embeddings.
-* In-memory vector search as a free local alternative to Oracle vector search.
-* Lightweight reranking layer after vector retrieval.
-* Retrieval timing metrics for observability.
-* Unit test for the reranking service.
-* Local search endpoint for testing semantic retrieval without Oracle Database or OpenAI credentials.
-
----
-
-## Original Application
-
-The original Swiss Travel Advisor allows users to ask questions such as:
-
-```text
-recommend a cozy ski town
-add Zermatt to my wishlist
-I want to visit a peaceful mountain resort
-```
-
-The assistant understands intent using embeddings and semantic search instead of relying only on exact keyword matching.
-
-Original stack:
-
-* Micronaut 5
-* LangChain4j
-* Oracle AI Database
-* OpenAI embeddings
-* GraalVM Native Image
-
-![Micronaut LangChain4j Architecture](assets/micronaut-langchain4j-architecture.png)
-
----
-
-## Original Flow
-
-In the original implementation:
-
-```text
-User query
-→ OpenAI embedding
-→ Oracle AI Database vector search
-→ top results
-→ LangChain4j tool execution
-→ LLM response
-```
-
-Oracle Database performs vector similarity search using `VECTOR_DISTANCE(..., COSINE)` to retrieve semantically relevant destinations, hotels, and activities.
+* In-memory vector search without Oracle Database.
+* Local semantic search endpoint.
+* Retrieval timing metrics.
+* Unit test for the reranking layer.
+* Separate local profile that runs without OpenAI or Oracle credentials.
 
 ---
 
 ## Architecture
 
-Original components:
+<img width="1672" height="941" alt="archi" src="https://github.com/user-attachments/assets/0df69d14-7d6b-4702-b28a-09d073c7315d" />
 
-* `SwissTravelAssistant` — LangChain4j `@AiService` for conversation and tool orchestration.
-* `TravelTools` — `@Tool` methods for semantic search and wishlist management.
-* Repositories — JDBC-based repositories using Oracle vector search.
-* `EmbeddingService` — generates embeddings using OpenAI.
-* `DataInitializer` — generates and persists embeddings on startup.
 
-Added in this fork:
+This fork supports two retrieval paths:
 
-* `RerankingService` — lightweight local reranking layer.
-* `OllamaEmbeddingService` — generates local embeddings using Ollama.
-* `LocalVectorSearchService` — performs in-memory cosine similarity search.
-* `LocalDestinationDataProvider` — provides local Swiss destination data.
-* `LocalSearchController` — exposes a local search endpoint for testing retrieval and reranking.
-* `application-local.properties` — allows local mode to run without Oracle/OpenAI setup.
-
----
-
-## Enhancement 1: Hybrid Retrieval Reranking
-
-The original destination search returned the top 5 results directly from vector similarity search.
-
-### Previous Flow
+### 1. Original Mode
 
 ```text
 User query
-→ query embedding
-→ Oracle vector search top 5
-→ final results returned to the LLM
+→ OpenAI embedding
+→ Oracle AI Database vector search
+→ top 30 candidates
+→ RerankingService
+→ final top 5 results
+→ LLM response
 ```
 
-### Updated Flow
-
-```text
-User query
-→ query embedding
-→ Oracle vector search top 30 candidates
-→ local reranking layer
-→ final top 5 results returned to the LLM
-```
-
-The goal is to keep vector search as the fast high-recall retrieval layer, while adding a second precision-focused reranking step before the final context is passed to the LLM.
-
-The current reranker is a lightweight local scoring service. It is not a real Cross Encoder yet. It validates the architecture without adding another external model dependency. In a future version, the same `RerankingService` can be replaced with a Cross Encoder or LLM-based reranker.
-
----
-
-## Enhancement 2: Local AI Mode with Ollama
-
-The original app requires:
-
-```text
-OpenAI API key
-Oracle Database connection
-```
-
-This fork adds a local AI mode that can run without those paid/external dependencies.
-
-### Local Mode Flow
+### 2. Local AI Mode
 
 ```text
 User query
@@ -138,16 +57,75 @@ User query
 → JSON response with metrics
 ```
 
+The local mode makes the retrieval pipeline testable without requiring an OpenAI API key or Oracle Database connection.
+
+---
+
+## Why This Upgrade Matters
+
+Vector search is fast and useful for high-recall retrieval, but the first vector results are not always the most precise for the user’s exact intent.
+
+This fork adds a second retrieval stage:
+
+```text
+Vector search = fast high-recall candidate retrieval
+Reranking = precision-focused final ordering
+```
+
+Instead of directly returning the first vector-search results, the system can now retrieve a larger candidate set and rerank it before returning the final results.
+
+---
+
+## Hybrid Retrieval Reranking
+
+### Previous Flow
+
+```text
+User query
+→ query embedding
+→ vector search top 5
+→ final results
+```
+
+### Updated Flow
+
+```text
+User query
+→ query embedding
+→ vector search top 30 candidates
+→ local reranking layer
+→ final top 5 results
+```
+
+The current reranker is implemented as a lightweight local scoring layer. It is not a real Cross Encoder yet. The goal is to validate the architecture first without adding another external model dependency.
+
+Future versions can replace the same `RerankingService` with:
+
+* Cross Encoder reranker
+* LLM-based reranker
+* dedicated reranking API
+
+---
+
+## Local AI Mode
+
+The original application depends on:
+
+```text
+OpenAI API key
+Oracle Database connection
+```
+
+This fork adds a local mode that can run without those external dependencies.
+
 Local mode uses:
 
 * Ollama
-* `nomic-embed-text` embedding model
-* Java in-memory vector search
-* Cosine similarity
-* Local reranking
+* `nomic-embed-text`
+* in-memory vector search
+* cosine similarity
+* local reranking
 * Micronaut REST endpoint
-
-This makes the retrieval and reranking pipeline easier to test, explain, and demonstrate.
 
 ---
 
@@ -155,9 +133,7 @@ This makes the retrieval and reranking pipeline easier to test, explain, and dem
 
 ### 1. Install Ollama
 
-Install Ollama and make sure it is running locally.
-
-Check:
+Check Ollama:
 
 ```powershell
 ollama --version
@@ -190,7 +166,7 @@ $env:MICRONAUT_ENVIRONMENTS="local"
 .\mvnw.bat mn:run
 ```
 
-Expected startup message:
+Expected startup:
 
 ```text
 Established active environments: [local]
@@ -244,7 +220,7 @@ Example response structure:
 
 ## Retrieval Metrics
 
-The local endpoint returns timing metrics to make the retrieval pipeline observable.
+The local search endpoint returns timing metrics for retrieval observability.
 
 | Metric                       | Meaning                                                    |
 | ---------------------------- | ---------------------------------------------------------- |
@@ -258,7 +234,16 @@ The local endpoint returns timing metrics to make the retrieval pipeline observa
 
 ## Sample Local Mode Results
 
-The local AI mode was tested using Ollama `nomic-embed-text` embeddings, in-memory cosine similarity search, and the local reranking layer.
+The following results were generated using:
+
+```text
+Ollama nomic-embed-text
+in-memory cosine similarity search
+local RerankingService
+40 Swiss destination records
+```
+
+---
 
 ### Query 1: Mountain and Nature Intent
 
@@ -296,7 +281,7 @@ Top results after reranking:
 |    4 | Murren        | Bernese Oberland |           0.7756 |
 |    5 | Brienz        | Bern             |           0.7455 |
 
-This result shows that vector search retrieves semantically relevant mountain and nature destinations, while the reranker adjusts the final ordering based on stronger query-term relevance such as `peaceful`, `mountain`, `village`, `hiking`, `trails`, and `views`.
+This shows that vector search retrieves semantically relevant mountain destinations, while reranking adjusts the final ordering based on stronger query-term relevance such as `peaceful`, `mountain`, `village`, `hiking`, `trails`, and `views`.
 
 ---
 
@@ -336,38 +321,27 @@ Top results after reranking:
 |    4 | St. Gallen  | St. Gallen          |           0.7612 |
 |    5 | Zurich      | Zurich              |           0.8186 |
 
-This result shows the benefit of reranking. Zurich had the highest vector similarity score, but Bern was promoted to the top after reranking because its description more directly matches the query terms: `historic`, `city`, `museums`, `old town`, `relaxed cafes`, and `cultural sightseeing`.
+This shows the benefit of reranking. Zurich had the highest vector similarity score, but Bern was promoted to the top because its description more directly matches the query terms: `historic`, `city`, `museums`, `old town`, `relaxed cafes`, and `cultural sightseeing`.
 
 Note: timings are local development measurements and may vary depending on Ollama warm-up, model loading, and machine performance.
 
 ---
 
-## Original Mode Retrieval Instrumentation
+## Original Mode Instrumentation
 
-The original Oracle/OpenAI destination search flow has also been instrumented with basic timing metrics inside `TravelTools.java`.
+The original `/api/chat` destination search path has also been instrumented with timing metrics inside `TravelTools.java`.
 
-When the original `/api/chat` flow calls `searchDestinations`, the tool now measures:
+When the original flow calls `searchDestinations`, it now measures:
 
-| Metric           | Meaning                                                  |
-| ---------------- | -------------------------------------------------------- |
-| `candidates`     | Number of vector-search candidates retrieved from Oracle |
-| `finalResults`   | Number of final results after reranking                  |
-| `vectorSearchMs` | Time spent in Oracle vector search                       |
-| `rerankingMs`    | Time spent in the reranking layer                        |
-| `totalMs`        | Total destination retrieval time                         |
+| Metric           | Meaning                                      |
+| ---------------- | -------------------------------------------- |
+| `candidates`     | Number of vector-search candidates retrieved |
+| `finalResults`   | Number of final results after reranking      |
+| `vectorSearchMs` | Time spent in vector search                  |
+| `rerankingMs`    | Time spent in the reranking layer            |
+| `totalMs`        | Total destination retrieval time             |
 
-The original mode flow is:
-
-```text
-User query
-→ OpenAI embedding
-→ Oracle vector search top 30 candidates
-→ RerankingService
-→ final top 5 results
-→ LLM response
-```
-
-This makes the original Oracle/OpenAI path benchmark-ready, while the local Ollama mode provides a free way to test the same retrieval and reranking idea without external credentials.
+This makes the original retrieval path benchmark-ready, while local mode provides a free way to test the same retrieval and reranking idea.
 
 ---
 
@@ -395,9 +369,7 @@ relaxed lakeside town with beautiful walks mountain views and mild weather
 
 ---
 
-## Files Added or Updated
-
-### Added
+## Files Added
 
 * `src/main/java/com/example/local/LocalDestination.java`
 * `src/main/java/com/example/local/LocalDestinationDataProvider.java`
@@ -407,7 +379,9 @@ relaxed lakeside town with beautiful walks mountain views and mild weather
 * `src/main/resources/application-local.properties`
 * `src/test/java/com/example/service/RerankingServiceTest.java`
 
-### Updated
+---
+
+## Files Updated
 
 * `src/main/java/com/example/tools/TravelTools.java`
 * `src/main/java/com/example/service/RerankingService.java`
@@ -435,85 +409,31 @@ Run:
 .\mvnw.bat test
 ```
 
-The test checks that the reranker can rank a more relevant Swiss mountain destination above less relevant city destinations for a travel-style query.
+The test verifies that the reranker can rank a more relevant Swiss mountain destination above less relevant city destinations for a travel-style query.
 
 ---
 
-## Original Mode: Oracle + OpenAI
+## Build
 
-The original flow is still available.
-
-Required environment variables:
-
-```bash
-export ORACLE_JDBC_URL='<oracle-jdbc-url>'
-export DB_PASSWORD=
-export OPENAI_API_KEY=your-key
-```
-
-Optional:
-
-```bash
-export DB_USERNAME=ADMIN
-```
-
-Run:
-
-```bash
-./mvnw mn:run
-```
-
-Example original API request:
-
-```bash
-curl -X POST http://localhost:8080/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "I want to visit a peaceful mountain resort"}'
+```powershell
+.\mvnw.bat clean package
 ```
 
 ---
 
-## Building a Native Image
+## Future Work
 
-```bash
-./mvnw package -Dpackaging=native-image
-./target/swiss-travel-advisor
-```
+Possible next improvements:
 
-The original native executable:
+* Add a dashboard to visualize:
 
-* Has a size of around 132 MB.
-* Starts and connects to the database in around 122 ms.
-* Consumes around 98 MB RAM under load.
-
----
-
-## Why This Upgrade Matters
-
-This fork adds two important improvements.
-
-### 1. Better Retrieval Quality
-
-Instead of directly trusting the first vector search results, the app now supports a second reranking stage:
-
-```text
-Vector search = fast high-recall retrieval
-Reranking = precision improvement
-```
-
-### 2. Easier Local Experimentation
-
-The local Ollama mode makes the retrieval pipeline testable without paid services:
-
-```text
-No OpenAI key
-No Oracle DB
-Local embeddings
-In-memory vector search
-Reranking metrics
-```
-
-This is useful for understanding and experimenting with RAG retrieval architecture before connecting to production-grade services.
-
----
-
+  * query
+  * before-reranking results
+  * after-reranking results
+  * timing metrics
+* Replace the lightweight reranker with a Cross Encoder.
+* Add LLM-based reranking.
+* Add local hotel and activity search.
+* Add optional Ollama chat response generation.
+* Compare baseline vector-only retrieval vs reranked retrieval.
+* Benchmark JVM vs GraalVM Native Image startup and memory usage in local mode.
