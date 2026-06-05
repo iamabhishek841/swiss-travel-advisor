@@ -83,7 +83,7 @@ old local/dev path, start with:
 
 The app starts at `http://localhost:8080`.
 
-The the native executable:
+The native executable:
 - Has the size of 132 MB
 - Starts and connects to the database in 122 ms
 - Even under load, consumes only around 98 MB RAM.
