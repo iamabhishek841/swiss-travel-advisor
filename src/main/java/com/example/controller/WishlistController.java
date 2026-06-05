@@ -6,7 +6,9 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 
 import java.util.List;
+import io.micronaut.context.annotation.Requires;
 
+@Requires(notEnv = "local")
 @Controller("/api")
 public class WishlistController {
     private final WishlistRepository wishlistRepository;

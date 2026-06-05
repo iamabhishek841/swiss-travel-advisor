@@ -8,7 +8,9 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.serde.annotation.Serdeable;
+import io.micronaut.context.annotation.Requires;
 
+@Requires(notEnv = "local")
 @Controller("/api")
 public class ChatController {
     private final SwissTravelAssistant assistant;

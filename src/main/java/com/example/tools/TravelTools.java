@@ -13,7 +13,9 @@ import dev.langchain4j.agent.tool.Tool;
 import jakarta.inject.Singleton;
 import com.example.service.RerankingService;
 import java.util.List;
+import io.micronaut.context.annotation.Requires;
 
+@Requires(notEnv = "local")
 @Singleton
 public class TravelTools {
 
