@@ -106,3 +106,53 @@ curl -X POST http://localhost:8080/api/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "I want to visit a peaceful mountain resort"}'
 ```
+
+## Enhancement: Hybrid Retrieval Reranking
+
+This branch adds a retrieval-quality enhancement to the destination search flow.
+
+### Previous flow
+
+```text
+User query
+→ query embedding
+→ Oracle vector search top 5
+→ final results returned to the LLM
+```
+
+### Updated flow
+
+```text
+User query
+→ query embedding
+→ Oracle vector search top 30 candidates
+→ local reranking layer
+→ final top 5 results returned to the LLM
+```
+
+The goal of this change is to keep Oracle vector search as the fast high-recall retrieval layer, while adding a second precision-focused reranking step before the final context is passed to the LLM.
+
+The current reranker is implemented as a lightweight local scoring service, so it does not require any additional external model or API dependency. This makes it useful for validating the architecture first. In a future version, the same `RerankingService` can be replaced with a Cross Encoder or LLM-based reranker.
+
+### Files changed
+
+* `TravelTools.java`
+
+  * Retrieves a larger destination candidate set.
+  * Applies reranking before returning final results.
+  * Includes basic retrieval timing metrics.
+
+* `RerankingService.java`
+
+  * Provides local query-candidate relevance scoring.
+  * Reranks candidate destinations before final selection.
+
+### Benchmarking idea
+
+The updated flow can be compared against the baseline using:
+
+* vector search latency
+* reranking latency
+* total retrieval latency
+* relevance of final top results
+* memory impact when compiled with GraalVM Native Image
