@@ -28,7 +28,8 @@ Main additions:
 
 ## Architecture
 
-<img width="1672" height="941" alt="archi" src="https://github.com/user-attachments/assets/0df69d14-7d6b-4702-b28a-09d073c7315d" />
+<img width="1672" height="941" alt="architecure" src="https://github.com/user-attachments/assets/c213dc0c-c5af-4737-aaf7-684b5a5293d2" />
+
 
 
 This fork supports two retrieval paths:
