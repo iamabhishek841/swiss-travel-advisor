@@ -9,7 +9,9 @@ import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import io.micronaut.context.annotation.Requires;
 
+@Requires(notEnv = "local")
 @Singleton
 public class WishlistRepository {
     private static final Logger LOG = LoggerFactory.getLogger(WishlistRepository.class);

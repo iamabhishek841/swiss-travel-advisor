@@ -3,7 +3,9 @@ package com.example.service;
 import com.example.tools.TravelTools;
 import dev.langchain4j.service.SystemMessage;
 import io.micronaut.langchain4j.annotation.AiService;
+import io.micronaut.context.annotation.Requires;
 
+@Requires(notEnv = "local")
 @AiService(tools = TravelTools.class)
 public interface SwissTravelAssistant {
 

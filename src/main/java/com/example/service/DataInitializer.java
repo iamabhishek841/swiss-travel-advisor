@@ -11,7 +11,9 @@ import io.micronaut.runtime.server.event.ServerStartupEvent;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.micronaut.context.annotation.Requires;
 
+@Requires(notEnv = "local")
 @Singleton
 public class DataInitializer implements ApplicationEventListener<ServerStartupEvent> {
     private static final Logger LOG = LoggerFactory.getLogger(DataInitializer.class);
